@@ -101,12 +101,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         url = urlparse(self.path)
         q = parse_qs(url.query)
-        if url.path == "/health":
+        path = url.path.rstrip("/") or "/"                      # /hello/ is the same page as /hello, not a redirect back and forth
+        if path == "/health":
             return self._reply(200, health())
-        if url.path == "/boom":
+        if path == "/boom":
             log.error("payment gateway timeout after 30s (order %s)", q.get("order", ["unknown"])[0][:20])
             return self._reply(500, "something went wrong\n")
-        if url.path in ("/", "/hello"):
+        if path in ("/", "/hello"):
             lang, name = q.get("lang", ["hi"])[0], q.get("name", ["friend"])[0]
             log.info("greeted %r in %s", clean_name(name), lang if lang in GREETINGS else "hi")
             return self._reply(200, render(lang, name))
