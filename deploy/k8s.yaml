@@ -1,0 +1,34 @@
+# Three pods of Namaste in their own namespace. Logs go to SigNoz when it runs on the same machine (host.k3d.internal is the machine, seen from k3d).
+apiVersion: v1
+kind: Namespace
+metadata: {name: namaste}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: namaste, namespace: namaste, labels: {app: namaste}}
+spec:
+  replicas: 3
+  selector: {matchLabels: {app: namaste}}
+  template:
+    metadata: {labels: {app: namaste}}
+    spec:
+      containers:
+        - name: web
+          image: namaste:local
+          imagePullPolicy: IfNotPresent
+          ports: [{containerPort: 8080}]
+          env:
+            - {name: SERVICE_NAME, value: namaste}
+            - {name: OTLP_LOGS_URL, value: "http://host.k3d.internal:4318/v1/logs"}
+            - {name: POD_NAME, valueFrom: {fieldRef: {fieldPath: metadata.name}}}
+            - {name: POD_NAMESPACE, valueFrom: {fieldRef: {fieldPath: metadata.namespace}}}
+          readinessProbe: {httpGet: {path: /health, port: 8080}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: 8080}, initialDelaySeconds: 5, periodSeconds: 10}
+          resources: {requests: {cpu: 20m, memory: 32Mi}, limits: {cpu: 200m, memory: 128Mi}}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: namaste, namespace: namaste}
+spec:
+  selector: {app: namaste}
+  ports: [{port: 80, targetPort: 8080}]

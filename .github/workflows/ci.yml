@@ -1,0 +1,52 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# The token can only read. Nothing here needs more.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1          # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0      # v7.1.0
+        with:
+          python-version: "3.12"
+      - run: python -m unittest -v
+
+  # Builds the image, makes its SBOM (SPDX and CycloneDX) and scans the SBOM for known vulnerabilities.
+  # The scan never fails the build: the Shipyard Gatekeeper reads the reports and decides what a finding means.
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1          # v7.0.1
+      - run: docker build -t namaste:ci .
+      - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c       # v0.24.3 (Syft)
+        with:
+          image: namaste:ci
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+      - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c       # v0.24.3 (Syft)
+        with:
+          image: namaste:ci
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          upload-artifact: false
+      - uses: anchore/scan-action@27805bf3b4e84b4a5c980df22ed233c00390a439       # v7.4.2 (Grype)
+        with:
+          sbom: sbom.spdx.json
+          fail-build: false
+          by-cve: true
+          output-format: json
+          output-file: grype.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
+        with: {name: sbom-spdx, path: sbom.spdx.json, retention-days: 30}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
+        with: {name: sbom-cyclonedx, path: sbom.cdx.json, retention-days: 30}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9   # v7.0.2
+        with: {name: grype-report, path: grype.json, retention-days: 30}
