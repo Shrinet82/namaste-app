@@ -62,6 +62,10 @@ class ServerTest(unittest.TestCase):
         self.assertTrue(body.startswith("Nomoshkar, Rima!"))
         self.assertEqual(self.get("/nope")[0], 404)
 
+    def test_a_trailing_slash_is_the_same_page(self):
+        self.assertEqual(self.get("/hello/?lang=en&name=Sam")[1], self.get("/hello?lang=en&name=Sam")[1])
+        self.assertEqual(self.get("/health/")[0], 200)
+
     def test_boom_logs_an_error_and_answers_500(self):
         with self.assertLogs("namaste", level="ERROR") as cm:
             status, _ = self.get("/boom?order=A-17")
