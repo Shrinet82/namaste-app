@@ -78,8 +78,10 @@ class OtlpHandler(logging.Handler):
                     batch.append(self.q.get_nowait())
                 except queue.Empty:
                     break
-            if batch:
-                self.send(batch)
+            if batch:                           # a send that hangs (DNS, a stalled collector) must not stop the next ones
+                t = threading.Thread(target=self.send, args=(batch,), daemon=True)
+                t.start()
+                t.join(5)
 
     def send(self, batch: list) -> None:
         try:
