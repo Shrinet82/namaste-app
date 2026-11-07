@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
 SERVICE = os.environ.get("SERVICE_NAME", "namaste")
+VERSION = "1.1"
 POD = os.environ.get("POD_NAME", socket.gethostname())
 NAMESPACE = os.environ.get("POD_NAMESPACE", "")
 GREETINGS = {"en": "Hello", "hi": "Namaste", "ta": "Vanakkam", "bn": "Nomoshkar", "mr": "Namaskar"}
@@ -106,6 +107,8 @@ class Handler(BaseHTTPRequestHandler):
         path = url.path.rstrip("/") or "/"                      # /hello/ is the same page as /hello, not a redirect back and forth
         if path == "/health":
             return self._reply(200, health())
+        if path == "/version":
+            return self._reply(200, f"namaste {VERSION}\n")
         if path == "/boom":
             log.error("payment gateway timeout after 30s (order %s)", q.get("order", ["unknown"])[0][:20])
             return self._reply(500, "something went wrong\n")
